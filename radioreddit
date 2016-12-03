@@ -1,0 +1,99 @@
+#!/usr/bin/env python3
+
+"""radioreddit - CLI to create mp3s from reddit posts using youtube-dl.
+"""
+
+import argparse
+import logging
+import sys
+
+import radioreddit
+
+
+def option_parser():
+    optmsgs = {
+        'create': 'Create an mp3 from a remote source.',
+        'quiet': 'Suppress output.',
+        'verbose': 'Increase verbosity.'
+    }
+    st = 'store_true'
+    title = 'RadioReddit - create mp3s from reddit posts using youtube-dl'
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('-q', '--quiet', help=optmsgs['quiet'], action=st)
+    parser.add_argument('-v', '--verbose', help=optmsgs['verbose'], action=st)
+
+    subparsers = parser.add_subparsers(title=title, description="Commands:",
+        dest='mode')
+
+    # Set up the sub-command parsers.
+    # https://docs.python.org/dev/library/argparse.html#sub-commands
+    parser_create = subparsers.add_parser('create')
+    parser_create.required = True
+
+    optmsgs.update({
+        'destdir': 'Destination directory for extracted mp3s.',
+        'listing_type': 'Type of subreddit listing to fetch.',
+        'subreddit': 'Subreddit to fetch links from.',
+        'url': 'Extract mp3 directly from URL (bypasses requiring --subreddit).',
+        'ytdlbin': 'Path to youtube-dl binary; if not provided PATH is searched'
+    })
+    parser_create.add_argument('-d', '--destdir', help=optmsgs['destdir'],
+                               required=True)
+    parser_create.add_argument('-b', '--ytdlbin', default=None,
+                               help=optmsgs['ytdlbin'])
+    parser_create.add_argument('-l', '--listingtype', default='random',
+                               help=optmsgs['listing_type'])
+    parser_create.add_argument('-s', '--subreddit', help=optmsgs['subreddit'])
+    parser_create.add_argument('-u', '--url', help=optmsgs['url'])
+
+    return parser.parse_args()
+
+
+def create_mode(args, radioreddit):
+    dest_dir = args.destdir
+    subreddit = args.subreddit
+    if args.url:
+        mp3 = radioreddit.create_mp3(args.url, dest_dir)
+    else:
+        listing_type = args.listingtype
+        mp3 = radioreddit.create_mp3_from_subreddit(subreddit, dest_dir,
+                                                    listing_type=listing_type)
+    if mp3:
+        print("Created mp3 file {}".format(mp3))
+        sys.exit(0)
+    print("ERROR: unable to create mp3 file.", file=sys.stderr)
+    sys.exit(1)
+
+
+def set_logging(args):
+    '''
+    Set the logging level.
+    '''
+    logger = logging.getLogger()
+    if args.verbose:
+        logger.setLevel(logging.DEBUG)
+    elif args.quiet:
+        logger.setLevel(logging.WARNING)
+    else:
+        logger.setLevel(logging.INFO)
+
+
+def main():
+    logger = logging.getLogger()
+    logging.basicConfig(
+        format="%(asctime)-15s\t%(levelname)s\t%(funcName)s\t%(message)s"
+    )
+    args = option_parser()
+    set_logging(args)
+    rr = radioreddit.RadioReddit(ytdl_bin=args.ytdlbin)
+
+    if args.mode == 'create':
+        create_mode(args, rr)
+
+    print("ERROR: no mode specified.", file=sys.stderr)
+    sys.exit(1)
+
+if __name__ == '__main__':
+    main()
