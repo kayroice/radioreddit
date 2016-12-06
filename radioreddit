@@ -87,6 +87,7 @@ def main():
     )
     args = option_parser()
     set_logging(args)
+    # FIXME: This will raise if create has not been called.
     rr = radioreddit.RadioReddit(ytdl_bin=args.ytdlbin)
 
     if args.mode == 'create':
