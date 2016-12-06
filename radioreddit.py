@@ -17,10 +17,10 @@ class RadioReddit(object):
     def __init__(self, ytdl_bin=None):
         """
         """
-        # TODO: Check if ffprobe or avprobe exist as executables; install
-        # libav-tools if not.
+        # TODO: Check if ffprobe or avprobe exist as executables.
         self.ytdl_bin = self.get_ytdl_bin(ytdl_bin)
         self.default_listing_type = 'random'
+
 
     def api_uri(self, api_uri=None):
         """
@@ -48,7 +48,7 @@ class RadioReddit(object):
             dest_dir (str): Directory to write mp3 files out to.
                 None.
             url (str): URL to extract mp3 from.
-            ytdl_bin (str): Path to youtube-dl binary. Defaults to None.
+            ytdl_bin (str): Path to youtube-dl binary.
 
         Returns:
             Returns the path to the mp3 file written out as a string.
@@ -80,6 +80,8 @@ class RadioReddit(object):
                                   create_dest_dir=True, ytdl_bin=None,
                                   listing_type=None):
         """
+        Create an mp3 by fetching a listing URL from the given subreddit.
+
         Args:
             api_uri (str): Reddit API URI.
             create_dest_dir (bool): A boolean controlling whether or not to
@@ -88,8 +90,10 @@ class RadioReddit(object):
             listing_type (str): Type of listing query to perform, defaults to
                 'random'.
             subreddit (str): Subreddit to extract mp3 from.
-            ytdl_bin (str): Path to youtube-dl binary. Defaults to None.
+            ytdl_bin (str): Path to youtube-dl binary.
 
+        Returns:
+            Returns the path to the mp3 file written out as a string.
         """
         api_uri = api_uri or self.api_uri(api_uri)
         dest_dir = dest_dir or self.dest_dir()
@@ -171,7 +175,7 @@ class RadioReddit(object):
 
         Args:
             domain (str): Domain name to be checked.
-            ytdl_bin (str): Path to youtube-dl binary. Defaults to None.
+            ytdl_bin (str): Path to youtube-dl binary.
 
         Returns:
             Returns True if extraction domain is supported, otherwise raises
@@ -200,7 +204,7 @@ class RadioReddit(object):
         extractor domains.
 
         Args:
-            ytdl_bin (str): Path to youtube-dl binary. Defaults to None.
+            ytdl_bin (str): Path to youtube-dl binary.
 
         Returns:
             Returns a list of extractor domains. The output of the 'youtube-dl'
@@ -391,7 +395,7 @@ class RadioReddit(object):
 
         Args:
             dest_dir (str): Directory to write mp3 files out to.
-            ytdl_bin (str): Path to youtube-dl binary, defaults to None.
+            ytdl_bin (str): Path to youtube-dl binary.
 
         Returns:
             Returns a list where the first element is the absolute path to
