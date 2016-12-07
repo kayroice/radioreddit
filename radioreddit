@@ -33,18 +33,27 @@ def option_parser():
     parser_create.required = True
 
     optmsgs.update({
-        'destdir': 'Destination directory for extracted mp3s.',
+        'mp3_dir': 'Directory to store extracted mp3s.',
         'listing_type': 'Type of subreddit listing to fetch.',
+        'overwrite': 'Overwrite mp3 or playlist files.',
+        'playlist': 'Path to mp3 playlist file to be created.',
+        'recurse': 'Recurse into subdirs when searching for files.',
         'subreddit': 'Subreddit to fetch links from.',
         'url': 'Extract mp3 directly from URL (bypasses requiring --subreddit).',
         'ytdlbin': 'Path to youtube-dl binary; if not provided PATH is searched'
     })
-    parser_create.add_argument('-d', '--destdir', help=optmsgs['destdir'],
+    parser_create.add_argument('-d', '--mp3dir', help=optmsgs['mp3_dir'],
                                required=True)
     parser_create.add_argument('-b', '--ytdlbin', default=None,
                                help=optmsgs['ytdlbin'])
     parser_create.add_argument('-l', '--listingtype', default='random',
                                help=optmsgs['listing_type'])
+    parser_create.add_argument('-o', '--overwrite', default=True,
+                               help=optmsgs['overwrite'])
+    parser_create.add_argument('-p', '--playlist', default=None,
+                               help=optmsgs['playlist'])
+    parser_create.add_argument('-r', '--recurse', help=optmsgs['recurse'],
+                               action=st)
     parser_create.add_argument('-s', '--subreddit', help=optmsgs['subreddit'])
     parser_create.add_argument('-u', '--url', help=optmsgs['url'])
 
@@ -52,16 +61,24 @@ def option_parser():
 
 
 def create_mode(args, radioreddit):
-    dest_dir = args.destdir
+    mp3_dir = args.mp3dir
+    pls_file = args.playlist
     subreddit = args.subreddit
     if args.url:
-        mp3 = radioreddit.create_mp3(args.url, dest_dir)
-    else:
+        mp3 = radioreddit.create_mp3(args.url, mp3_dir)
+    elif subreddit:
         listing_type = args.listingtype
-        mp3 = radioreddit.create_mp3_from_subreddit(subreddit, dest_dir,
+        mp3 = radioreddit.create_mp3_from_subreddit(subreddit, mp3_dir,
                                                     listing_type=listing_type)
-    if mp3:
-        print("Created mp3 file {}".format(mp3))
+    else:
+        mp3 = None
+    if pls_file:
+        pls_file = radioreddit.create_pls(mp3_dir=mp3_dir, pls_file=pls_file,
+                                          overwrite=True, recurse=args.recurse)
+    if mp3 or pls_file:
+        for filename in mp3, pls_file:
+            if filename:
+                print("Created file {}".format(filename))
         sys.exit(0)
     print("ERROR: unable to create mp3 file.", file=sys.stderr)
     sys.exit(1)

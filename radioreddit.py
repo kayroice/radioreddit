@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import fnmatch
 import json
 import logging
 import os
@@ -37,15 +38,16 @@ class RadioReddit(object):
         return api_uri
 
 
-    def create_mp3(self, url, dest_dir, ytdl_bin=None, create_dest_dir=True):
+    def create_mp3(self, url, mp3_dir=None, ytdl_bin=None,
+                   create_mp3_dir=True):
         """
         Call 'youtube-dl' to create an mp3 from a URL. Write the mp3 out to
-        the given destination directory.
+        the given mp3 directory.
 
         Args:
-            create_dest_dir (bool): A boolean controlling whether or not to
-                create destination dirs if they don't exist. Defaults to True.
-            dest_dir (str): Directory to write mp3 files out to.
+            create_mp3_dir (bool): A boolean controlling whether or not to
+                create mp3 dirs if they don't exist. Defaults to True.
+            mp3_dir (str): Directory to write mp3 files out to.
                 None.
             url (str): URL to extract mp3 from.
             ytdl_bin (str): Path to youtube-dl binary.
@@ -53,11 +55,11 @@ class RadioReddit(object):
         Returns:
             Returns the path to the mp3 file written out as a string.
         """
-        dest_dir = dest_dir or self.dest_dir()
+        mp3_dir = mp3_dir or self.mp3_dir()
         ytdl_bin = ytdl_bin or self.ytdl_bin
         self.extractor_domain_is_supported(urllib.parse.urlsplit(url)[1])
-        self.dest_dir_exists(dest_dir, create_dest_dir)
-        ytdl_cmd = self.ytdl_cmd(url, dest_dir, ytdl_bin)
+        self.mp3_dir_exists(mp3_dir, create_mp3_dir)
+        ytdl_cmd = self.ytdl_cmd(url, mp3_dir, ytdl_bin)
         rc, out, err = self.exec_shell_cmd(ytdl_cmd)
         if rc:
             for line in err.decode().split('\n'):
@@ -76,17 +78,17 @@ class RadioReddit(object):
         return None
 
 
-    def create_mp3_from_subreddit(self, subreddit, dest_dir, api_uri=None,
-                                  create_dest_dir=True, ytdl_bin=None,
+    def create_mp3_from_subreddit(self, subreddit, mp3_dir=None, api_uri=None,
+                                  create_mp3_dir=True, ytdl_bin=None,
                                   listing_type=None):
         """
         Create an mp3 by fetching a listing URL from the given subreddit.
 
         Args:
             api_uri (str): Reddit API URI.
-            create_dest_dir (bool): A boolean controlling whether or not to
-                create destination dirs if they don't exist. Defaults to True.
-            dest_dir (str): Directory to write mp3 files out to.
+            create_mp3_dir (bool): A boolean controlling whether or not to
+                create mp3 dirs if they don't exist. Defaults to True.
+            mp3_dir (str): Directory to write mp3 files out to.
             listing_type (str): Type of listing query to perform, defaults to
                 'random'.
             subreddit (str): Subreddit to extract mp3 from.
@@ -96,50 +98,51 @@ class RadioReddit(object):
             Returns the path to the mp3 file written out as a string.
         """
         api_uri = api_uri or self.api_uri(api_uri)
-        dest_dir = dest_dir or self.dest_dir()
+        mp3_dir = mp3_dir or self.mp3_dir()
         url = self.listing_url(subreddit, api_uri, listing_type)
-        mp3 = self.create_mp3(url=url, create_dest_dir=create_dest_dir,
-                              dest_dir=dest_dir, ytdl_bin=ytdl_bin)
+        mp3 = self.create_mp3(url=url, create_mp3_dir=create_mp3_dir,
+                              mp3_dir=mp3_dir, ytdl_bin=ytdl_bin)
         return mp3        
 
 
-    def dest_dir(self, dest_dir):
+    def create_pls(self, mp3_dir=None, pls_file=None, overwrite=True,
+                   recurse=False):
         """
-        Get the destination directory for writing mp3s out to.
+        Create a playlist file given a directory to search for audio files.
+
+        https://en.wikipedia.org/wiki/PLS_(file_format)
 
         Args:
-            dest_dir (str): Directory to write mp3 files out to.
+            mp3_dir (str): Directory to write mp3 files out to.
+            pls_file (str): Path of the playlist file to be created.
+            overwrite (bool): Boolean governing whether to overwrite an existing
+                playlist file. Defaults to True.
+            recurse (bool): Boolean governing whether to recursively search
+                subdirs of the mp3 dir.
 
         Returns:
-            Returns the destination directory as a string.
+            Returns the name of the playlist file as a string.
         """
-        msg = "Destination directory defined as {}".format(dest_dir)
-        logging.debug(msg)
-        return dest_dir
-
-
-    def dest_dir_exists(self, dest_dir, create_dest_dir=True):
-        """
-        Check if the destination directory exists. If 'create_dest_dir' is True,
-        and the destination dir does not exist, then attempt to create it.
-
-        Args:
-            create_dest_dir (bool): A boolean controlling whether or not to
-                create destination dirs if they don't exist. Defaults to True.
-            dest_dir (str): Directory to write mp3 files out to.
-
-        Returns:
-            Returns a boolean; True if the destination dir exists or was created
-            if it didn't exist, False if the destination dir does not exist or
-            was not created.           
-        """
-        if not os.path.isdir(dest_dir):
-            msg = "Destination directory {} does not exist.".format(dest_dir)
-            logging.error(msg)
-            if create_dest_dir:
-                self.mk_dest_dir(dest_dir)
-                return True
-        return False
+        mp3_dir = mp3_dir or self.mp3_dir(mp3_dir)
+        pls_file = pls_file or self.pls_file(mp3_dir, pls_file)
+        if not overwrite and os.path.isfile(pls_file):
+            msg = "{} exists, not overwriting."
+            raise RadioRedditErr(msg)
+        mp3_files = self.find_files(mp3_dir, recurse=recurse)
+        num_entries = len(mp3_files)
+        try:
+            with open(pls_file, 'w') as pls_fd:
+                logging.debug("Writing playlist out to {}".format(pls_file))
+                pls_fd.write("[playlist]\n")
+                pls_fd.write("NumberOfEntries={}\n".format(num_entries))
+                for mp3_file in mp3_files:
+                    logging.debug("Adding {} to {}".format(mp3_file, pls_file))
+                    file_num = mp3_files.index(mp3_file) + 1
+                    pls_fd.write("File{}={}\n".format(file_num, mp3_file))
+        except Exception as e:
+            msg = "Failed to write out playlist file {}: {}".format(pls_file, e)
+            raise RadioRedditErr(msg)
+        return pls_file
 
 
     def exec_shell_cmd(self, shell_cmd):
@@ -225,6 +228,19 @@ class RadioReddit(object):
         return extractor_domains
 
 
+    def find_files(self, dirname, extension='mp3', recurse=False):
+        files = []
+        logging.debug("Searching for files in {}".format(dirname))
+        for root, dirnames, filenames in os.walk(dirname):
+            for filename in fnmatch.filter(filenames, "*.{}".format(extension)):
+                logging.debug("Found file {}".format(filename))
+                files.append(os.path.join(root, filename))
+            if not recurse:
+                logging.debug("Directory recursion set to: {}".format(recurse))
+                break
+        return files
+
+
     def get_ytdl_bin(self, ytdl_bin=None):
         """
         Get the path to the 'youtube-dl' binary. First check that the file
@@ -236,7 +252,9 @@ class RadioReddit(object):
         Returns:
             Returns the absolute path of 'youtube-dl' as a string.
         """
-
+        # TODO: shutil.which is available in >= python-3.4, this method should
+        # probably be updated to be backwards compatible with olders versions
+        # of python3.
         ytdl_bin = ytdl_bin or shutil.which('youtube-dl')
         if os.path.isfile(ytdl_bin):
             if os.access(ytdl_bin, os.X_OK):
@@ -303,26 +321,87 @@ class RadioReddit(object):
         return listing_data
 
 
-    def mk_dest_dir(self, dest_dir):
+    def mk_mp3_dir(self, mp3_dir):
         """
-        Make the given destination directory.
+        Make the given mp3 directory.
 
         Args:
-            dest_dir (str): Directory to write mp3 files out to.
+            mp3_dir (str): Directory to write mp3 files out to.
 
         Returns:
             Attempts to create the given directory; returns the directory name
             as a string if successful.
         """
-        msg = "Attempting to create {}".format(dest_dir)
+        msg = "Attempting to create {}".format(mp3_dir)
         logging.debug(msg)
         try:
-            os.makedirs(dest_dir, exist_ok=True)
-            logging.debug("Created directory {}".format(dest_dir))
-            return dest_dir
+            os.makedirs(mp3_dir, exist_ok=True)
+            logging.debug("Created directory {}".format(mp3_dir))
+            return mp3_dir
         except Exception as e:
-            msg = "Failed to create {}: {}".format(dest_dir, e)
+            msg = "Failed to create {}: {}".format(mp3_dir, e)
             raise RadioRedditErr(msg)
+
+
+    def mp3_dir(self, mp3_dir):
+        """
+        Get the mp3 directory for writing mp3s out to.
+
+        Args:
+            mp3_dir (str): Directory to write mp3 files out to.
+
+        Returns:
+            Returns the mp3 directory as a string.
+        """
+        msg = "Destination directory defined as {}".format(mp3_dir)
+        logging.debug(msg)
+        return mp3_dir
+
+
+    def mp3_dir_exists(self, mp3_dir, create_mp3_dir=True):
+        """
+        Check if the mp3 directory exists. If 'create_mp3_dir' is True,
+        and the mp3 dir does not exist, then attempt to create it.
+
+        Args:
+            create_mp3_dir (bool): A boolean controlling whether or not to
+                create mp3 dirs if they don't exist. Defaults to True.
+            mp3_dir (str): Directory to write mp3 files out to.
+
+        Returns:
+            Returns a boolean; True if the mp3 dir exists or was created
+            if it didn't exist, False if the mp3 dir does not exist or
+            was not created.           
+        """
+        if not os.path.isdir(mp3_dir):
+            msg = "Destination directory {} does not exist.".format(mp3_dir)
+            logging.error(msg)
+            if create_mp3_dir:
+                self.mk_mp3_dir(mp3_dir)
+                return True
+        return False
+
+
+    def pls_file(self, mp3_dir=None, pls_file=None):
+        """
+        Get the name of the playlist file. 
+
+        Args:
+            mp3_dir (str): Directory to write mp3 files out to.
+            pls_file (str): Path of the playlist file to be created.
+            overwrite (bool): Boolean governing whether to overwrite an existing
+                playlist file. Defaults to True.
+            recurse (bool): Boolean governing whether to recursively search
+                subdirs of the mp3 dir.
+
+        Returns:
+            Returns the playlist as a string.
+        """
+        mp3_dir = mp3_dir or self.mp3_dir(mp3_dir)
+        pls_file = pls_file or "{}/{}.pls".format(mp3_dir,
+                                                  os.path.basename(mp3_dir))
+        logging.debug("Playlist file defined as {}".format(pls_file))
+        return pls_file
 
 
     def subreddit_data(self, subreddit, api_uri=None, listing_type=None):
@@ -389,12 +468,12 @@ class RadioReddit(object):
         return url
 
 
-    def ytdl_cmd(self, url, dest_dir, ytdl_bin=None):
+    def ytdl_cmd(self, url, mp3_dir, ytdl_bin=None):
         """
         Get a list defining the 'youtube-dl' command to be executed.
 
         Args:
-            dest_dir (str): Directory to write mp3 files out to.
+            mp3_dir (str): Directory to write mp3 files out to.
             ytdl_bin (str): Path to youtube-dl binary.
 
         Returns:
@@ -406,7 +485,7 @@ class RadioReddit(object):
             ytdl_bin,
             '--audio-format=mp3',
             '--extract-audio',
-            '--output={}/%(title)s.%(ext)s'.format(dest_dir),
+            '--output={}/%(title)s.%(ext)s'.format(mp3_dir),
             '--restrict-filenames',
             '--verbose',
             url

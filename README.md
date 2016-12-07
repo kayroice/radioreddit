@@ -31,7 +31,7 @@ $ curl https://github.com/kayroice/radioreddit/blob/master/radioreddit.py -o /pa
 * 
 
 ```sh
-$ radioreddit create -d /tmp/destinstaion_dir -s subreddit_name
+$ radioreddit create -d /tmp/mp3_dir -s subreddit_name
 ```
 
 ## Release History
