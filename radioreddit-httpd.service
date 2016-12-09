@@ -1,0 +1,14 @@
+[Unit]
+Description=RadioReddit HTTP server
+After=syslog.target
+After=network.target
+
+[Service]
+ExecStart=/path/to/radioreddit/radioreddit httpd --start
+Group=nogroup
+TimeoutSec=300
+Type=simple
+User=nobody
+
+[Install]
+WantedBy=multi-user.target

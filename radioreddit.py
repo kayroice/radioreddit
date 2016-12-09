@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import shutil
+import socket
 import subprocess
 import uuid
 import urllib.request
@@ -106,7 +107,7 @@ class RadioReddit(object):
 
 
     def create_pls(self, mp3_dir=None, pls_file=None, overwrite=True,
-                   recurse=False):
+                   recurse=False, uri=None):
         """
         Create a playlist file given a directory to search for audio files.
 
@@ -138,6 +139,8 @@ class RadioReddit(object):
                 for mp3_file in mp3_files:
                     logging.debug("Adding {} to {}".format(mp3_file, pls_file))
                     file_num = mp3_files.index(mp3_file) + 1
+                    if uri:
+                        mp3_file = "{}{}".format(uri, mp3_file)
                     pls_fd.write("File{}={}\n".format(file_num, mp3_file))
         except Exception as e:
             msg = "Failed to write out playlist file {}: {}".format(pls_file, e)
@@ -402,6 +405,15 @@ class RadioReddit(object):
                                                   os.path.basename(mp3_dir))
         logging.debug("Playlist file defined as {}".format(pls_file))
         return pls_file
+
+
+    def port_is_open(self, port, addr='0.0.0.0'):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if sock.connect_ex((addr,port)) == 0:
+            logging.debug("{}:{} is in use and open.".format(addr, port))
+            return True
+        logging.debug("Port {}:{} is not open.".format(addr, port))
+        return False
 
 
     def subreddit_data(self, subreddit, api_uri=None, listing_type=None):
