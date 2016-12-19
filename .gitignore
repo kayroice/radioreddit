@@ -1,3 +1,5 @@
 # Python files to ignore
+.coverage
+.coveragerc
 __pycache__/
 *.pyc
