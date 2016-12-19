@@ -232,6 +232,18 @@ class RadioReddit(object):
 
 
     def find_files(self, dirname, extension='mp3', recurse=False):
+        """
+        Find files by the given extension in a directory.
+
+        Args:
+            dirname (str): Path to directory to search.
+            extension (str): Extension of files to find. Defaults to 'mp3'.
+            recurse (bool): Whether to recursively search the given dir.
+                Defaults to False.
+
+        Returns:
+            Returns a list of filenames.
+        """
         files = []
         logging.debug("Searching for files in {}".format(dirname))
         for root, dirnames, filenames in os.walk(dirname):
@@ -314,14 +326,7 @@ class RadioReddit(object):
         subreddit_data = self.subreddit_data(subreddit, api_uri, listing_type)
         msg = "Indexing into {} listing data for {}.".format(listing_type,
                                                              subreddit)
-        if listing_type == 'random':
-            listing_data = subreddit_data[0]['data']['children'][0]['data']
-        elif listing_type == 'top': 
-            listing_data = subreddit_data['data']['children'][0]['data']
-        else:
-            msg = "Listing type {} not supported.".format(listing_type)
-            raise RadioRedditErr(msg)
-        return listing_data
+        return subreddit_data['data']['children'][0]['data']
 
 
     def mk_mp3_dir(self, mp3_dir):
@@ -382,7 +387,9 @@ class RadioReddit(object):
             if create_mp3_dir:
                 self.mk_mp3_dir(mp3_dir)
                 return True
-        return False
+            return False
+        logging.debug("Directory {} exists.".format(mp3_dir))
+        return True
 
 
     def pls_file(self, mp3_dir=None, pls_file=None):
@@ -408,6 +415,17 @@ class RadioReddit(object):
 
 
     def port_is_open(self, port, addr='0.0.0.0'):
+        """
+        Check whether a given port is open at a specific address.
+
+        Args:
+            port (int): Port to check.
+            addr (str): Address to query for whether port is open. Defaults to
+                0.0.0.0.
+
+        Returns:
+            Returns a boolean; True if the port is open, otherwise False.
+        """
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         if sock.connect_ex((addr,port)) == 0:
             logging.debug("{}:{} is in use and open.".format(addr, port))
@@ -433,6 +451,7 @@ class RadioReddit(object):
             Returns a dict describing the listing.
         """
         api_uri = api_uri or self.api_uri(api_uri)
+        listing_type = listing_type or 'random'
         url = self.subreddit_url(subreddit, api_uri, listing_type)
         user_agent = "RadioReddit/{}".format(uuid.uuid4().hex)
         logging.debug("User-agent defined as {}".format(user_agent))
@@ -447,9 +466,16 @@ class RadioReddit(object):
             raise RadioRedditErr(msg)
         try:
             logging.debug("Loading JSON data from {}".format(url))
-            return json.loads(response)
+            subreddit_data = json.loads(response)
         except Exception as e:
             msg = "Unable to decode JSON response from {}: {}".format(url, e)
+            raise RadioRedditErr(msg)
+        if listing_type == 'random':
+            return subreddit_data[0]
+        elif listing_type == 'top': 
+            subreddit_data
+        else:
+            msg = "Listing type {} not supported.".format(listing_type)
             raise RadioRedditErr(msg)
 
 
