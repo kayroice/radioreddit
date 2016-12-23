@@ -13,6 +13,7 @@ addons:
   apt:
     packages:
       - libav-tools
+      - python3-pytest
       - python3-simplejson
       - youtube-dl
 script: py.test-3
