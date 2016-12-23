@@ -1,3 +1,7 @@
+dist: trusty
+env:
+  - DEBIAN_FRONTEND=noninteractive
+sudo: false
 language: python
 python:
   - "3.4"
@@ -9,9 +13,7 @@ addons:
   apt:
     packages:
       - libav-tools
-      - python3-demjson
+      - python3-pytest
+      - python3-simplejson
       - youtube-dl
-# command to install dependencies
-# install: "pip install -r requirements.txt"
-# command to run tests
-script: py.test
+script: py.test-3
