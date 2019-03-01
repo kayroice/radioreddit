@@ -301,6 +301,10 @@ class RadioReddit(object):
         try:
             listing_url = listing_data['url']
             logging.debug("Found listing URL {}".format(listing_url))
+            comments = "/r/{}/comments".format(subreddit)
+            if urllib.parse.urlparse(listing_url)[2].startswith(comments):
+                msg = "Listing URL is a comment: {}".format(listing_url)
+                raise RadioRedditErr(msg)
             return listing_url
         except Exception as e:
             msg = "Unable to determine listing URL from {}".format(listing_data,
